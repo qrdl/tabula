@@ -1,0 +1,9 @@
+# Your settings for this device. Copy to sdkconfig.local (git-ignored: it holds the Wi-Fi password).
+# After editing: rm sdkconfig && idf.py build   (sdkconfig is regenerated from this file)
+# The network must be 2.4 GHz.
+CONFIG_TABULA_WIFI_SSID="your-network"
+CONFIG_TABULA_WIFI_PASSWORD="your-password"
+CONFIG_TABULA_SERVER_URL="http://tabula:1337"
+# Only if the server's config sets auth.user and auth.password; empty = no auth.
+CONFIG_TABULA_SERVER_USER=""
+CONFIG_TABULA_SERVER_PASSWORD=""

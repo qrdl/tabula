@@ -1,0 +1,49 @@
+menu "Tabula display"
+
+    config TABULA_WIFI_SSID
+        string "Wi-Fi name (SSID)"
+        default ""
+        help
+            The network must be 2.4 GHz; the ESP32-S3 has no 5 GHz radio.
+
+    config TABULA_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default ""
+
+    config TABULA_SERVER_URL
+        string "Server URL"
+        default "http://tabula:1337"
+        help
+            The device downloads <Server URL>/api/image.bin.
+
+    config TABULA_SERVER_USER
+        string "Server user (basic auth)"
+        default ""
+        help
+            The server's auth.user setting. Empty = no auth.
+
+    config TABULA_SERVER_PASSWORD
+        string "Server password (basic auth)"
+        default ""
+        help
+            The server's auth.password setting.
+
+    config TABULA_MIN_REDRAW_INTERVAL_S
+        int "Minimum seconds between screen redraws"
+        default 180
+        help
+            Waveshare advises at least 180 s between refreshes of its colour panels.
+            A refresh request that arrives sooner is delayed, not dropped.
+
+    config TABULA_BUTTON_MIN_REDRAW_INTERVAL_S
+        int "Minimum seconds between redraws after a button press"
+        default 30
+        help
+            BOOT (refresh) and KEY (rotate) skip the normal minimum interval
+            but still wait this long after the previous redraw.
+
+    config TABULA_DAILY_REDRAW_HOURS
+        int "Redraw the screen at least every N hours"
+        default 24
+
+endmenu

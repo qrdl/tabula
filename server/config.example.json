@@ -1,0 +1,13 @@
+{
+  "listen": ":1337",
+  "db": "tabula.db",
+  "auth": {"user": "", "password": ""},
+  "image": {
+    "margin": {"top": 20, "right": 24, "bottom": 20, "left": 24},
+    "font": "",
+    "font_size": 28,
+    "line_spacing": 1.2,
+    "task_spacing": 12,
+    "date_format": "Jan 2"
+  }
+}

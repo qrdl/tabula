@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tabula</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%236ea8ff' d='M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<script>
+  try {
+    const t = localStorage.getItem('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <h1>Tabula</h1>
+    <nav class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="tasks" aria-selected="true">Tasks</button>
+      <button type="button" role="tab" data-tab="categories" aria-selected="false">Categories</button>
+      <button type="button" role="tab" data-tab="preview" aria-selected="false">Preview</button>
+    </nav>
+    <button type="button" id="theme" class="icon-btn" title="Light theme" aria-label="Light theme"><span class="mi" aria-hidden="true">light_mode</span></button>
+  </div>
+</header>
+
+<main>
+  <div id="error" class="error" role="alert" hidden>
+    <span class="error-text"></span>
+    <button type="button" class="icon-btn" aria-label="Dismiss"><span class="mi" aria-hidden="true">close</span></button>
+  </div>
+
+  <section id="tab-tasks" class="tab">
+    <form id="add-task" class="card task-form" autocomplete="off" hidden>
+      <input name="text" placeholder="New task" required maxlength="500" aria-label="Task">
+      <div class="task-fields">
+        <div class="seg priority" role="radiogroup" aria-label="Priority">
+          <label><input type="radio" name="priority" value="high"><span>High</span></label>
+          <label><input type="radio" name="priority" value="medium" checked><span>Medium</span></label>
+          <label><input type="radio" name="priority" value="low"><span>Low</span></label>
+        </div>
+        <div class="date-field">
+          <input type="date" name="due" aria-label="Due date">
+          <button type="button" class="icon-btn clear-date" title="Clear due date" aria-label="Clear due date"><span class="mi" aria-hidden="true">backspace</span></button>
+        </div>
+        <select name="category_id" aria-label="Category"></select>
+        <div class="form-actions">
+          <button type="button" class="ghost" id="hide-add">Cancel</button>
+          <button type="submit" class="primary"><span class="mi" aria-hidden="true">add</span>Add</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="list-head">
+      <div class="seg filter" role="radiogroup" aria-label="Show">
+        <label><input type="radio" name="filter" value="open" checked><span>Open</span></label>
+        <label><input type="radio" name="filter" value="closed"><span>Closed</span></label>
+        <label><input type="radio" name="filter" value="all"><span>All</span></label>
+      </div>
+      <button type="button" class="primary" id="show-add"><span class="mi" aria-hidden="true">add</span>New task</button>
+    </div>
+    <ul id="tasks" class="list"></ul>
+    <p id="tasks-empty" class="empty" hidden></p>
+  </section>
+
+  <section id="tab-categories" class="tab" hidden>
+    <form id="add-category" class="card category-form" autocomplete="off">
+      <button type="button" id="new-cat-icon" class="icon-pick" aria-label="Choose icon"></button>
+      <input name="name" placeholder="New category" required maxlength="50" aria-label="Category name">
+      <button type="submit" class="primary"><span class="mi" aria-hidden="true">add</span>Add</button>
+    </form>
+    <ul id="categories" class="list"></ul>
+    <p id="categories-empty" class="empty" hidden>No categories yet</p>
+  </section>
+
+  <section id="tab-preview" class="tab" hidden>
+    <img id="preview" alt="The image shown on the device">
+    <p class="hint">This is what the device shows. Colours are approximate. Rotate it with the device's KEY button.</p>
+  </section>
+</main>
+
+<dialog id="task-dialog">
+  <form id="task-form" autocomplete="off">
+    <h2>Edit task</h2>
+    <label class="field"><span>Task</span><textarea name="text" required maxlength="500" rows="3"></textarea></label>
+    <div class="field"><span>Priority</span>
+      <div class="seg priority" role="radiogroup" aria-label="Priority">
+        <label><input type="radio" name="priority" value="high"><span>High</span></label>
+        <label><input type="radio" name="priority" value="medium"><span>Medium</span></label>
+        <label><input type="radio" name="priority" value="low"><span>Low</span></label>
+      </div>
+    </div>
+    <div class="field"><span>Due date</span>
+      <div class="date-field">
+        <input type="date" name="due" aria-label="Due date">
+        <button type="button" class="icon-btn clear-date" title="Clear due date" aria-label="Clear due date"><span class="mi" aria-hidden="true">backspace</span></button>
+      </div>
+    </div>
+    <label class="field"><span>Category</span><select name="category_id"></select></label>
+    <p class="form-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" data-close>Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="icon-dialog" class="picker">
+  <div class="picker-head">
+    <input type="search" id="icon-search" placeholder="Search icons, e.g. cart" autocomplete="off" aria-label="Search icons">
+    <button type="button" class="icon-btn" data-close aria-label="Close"><span class="mi" aria-hidden="true">close</span></button>
+  </div>
+  <p id="icon-count" class="hint"></p>
+  <div id="icon-grid" class="icon-grid"></div>
+</dialog>
+
+<dialog id="confirm-dialog">
+  <form method="dialog">
+    <p id="confirm-text"></p>
+    <div class="dialog-actions">
+      <button value="cancel" class="ghost" autofocus>Cancel</button>
+      <button value="ok" class="danger">Delete</button>
+    </div>
+  </form>
+</dialog>
+</body>
+</html>

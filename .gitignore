@@ -1,0 +1,24 @@
+# Server: built binary, local settings (may hold the auth password), task database
+server/tabula
+server/config.json
+server/*.db
+server/*.db-journal
+server/*.db-wal
+server/*.db-shm
+
+# Firmware build output
+firmware/build/
+# sdkconfig and sdkconfig.local hold the Wi-Fi password in plain text;
+# sdkconfig.old and other copies of them too.
+firmware/sdkconfig
+firmware/sdkconfig.*
+!firmware/sdkconfig.defaults
+!firmware/sdkconfig.local.example
+
+# Local design notes
+PLAN.md
+
+# Flash images and backups of the board (16 MB each)
+backup/
+*.bin
+.vscode
