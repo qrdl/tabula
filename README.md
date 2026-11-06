@@ -57,6 +57,18 @@ The device shows open tasks of all categories, or of just one: pick it under **P
 
 Tests: `go test ./...`
 
+## PhotoPainter controls
+
+| Control | What it does |
+|---|---|
+| **BOOT**, short press | Downloads the image and redraws it, even if nothing changed. If the last redraw was under 30 s ago, it waits until then |
+| **KEY**, short press | Turns the image 90° clockwise; press twice for 180°. Redraws once, 3 s after the last press. The rotation is kept across restarts |
+| Green LED | Blinks on each press |
+| Press longer than 1 s | Ignored |
+| Hold **BOOT** while plugging in | Download mode, for flashing ([Flash](firmware/README.md#flash)) |
+
+The 30 s pause is `CONFIG_TABULA_BUTTON_MIN_REDRAW_INTERVAL_S` in the [firmware settings](firmware/README.md#settings).
+
 ## Firmware
 
 The device runs its own firmware, written in C for ESP-IDF 5.5. How to build it, flash it and set its Wi-Fi and server settings, and what the device does: [firmware/README.md](firmware/README.md).
