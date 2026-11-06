@@ -213,3 +213,56 @@ func TestDeviceAddr(t *testing.T) {
 		}
 	}
 }
+
+func TestDeviceCategory(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	check := func(want *int64) {
+		t.Helper()
+		got, err := s.DeviceCategory(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (got == nil) != (want == nil) || got != nil && *got != *want {
+			t.Errorf("device category %v, want %v", got, want)
+		}
+	}
+	check(nil)
+
+	shop, err := s.AddCategory(ctx, "Shopping", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	work, err := s.AddCategory(ctx, "Work", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetDeviceCategory(ctx, ptr(int64(999))); !errors.Is(err, ErrUnknownCategory) {
+		t.Errorf("unknown category: got %v, want ErrUnknownCategory", err)
+	}
+	check(nil)
+
+	for _, id := range []int64{shop.ID, work.ID} {
+		if err := s.SetDeviceCategory(ctx, &id); err != nil {
+			t.Fatal(err)
+		}
+		check(&id)
+	}
+	if err := s.SetDeviceCategory(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	check(nil)
+
+	// Deleting another category keeps the setting; deleting the shown one clears it.
+	if err := s.SetDeviceCategory(ctx, &work.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteCategory(ctx, shop.ID); err != nil {
+		t.Fatal(err)
+	}
+	check(&work.ID)
+	if err := s.DeleteCategory(ctx, work.ID); err != nil {
+		t.Fatal(err)
+	}
+	check(nil)
+}

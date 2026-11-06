@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -85,6 +86,8 @@ func TestAPIValidation(t *testing.T) {
 		{"empty category name", "POST", "/api/categories", `{"name":""}`, 400},
 		{"unknown icon", "POST", "/api/categories", `{"name":"Shop","icon":"no_such_icon"}`, 400},
 		{"delete missing category", "DELETE", "/api/categories/999", ``, 404},
+		{"unknown device category", "PUT", "/api/device", `{"category_id":999}`, 400},
+		{"unknown device field", "PUT", "/api/device", `{"rotation":90}`, 400},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -160,6 +163,72 @@ func TestAPITaskFlow(t *testing.T) {
 	// add, update, close, delete category, delete task
 	if ta.changes != 5 {
 		t.Errorf("changes reported: %d, want 5", ta.changes)
+	}
+}
+
+func TestAPIDeviceCategory(t *testing.T) {
+	ta := newTestAPI(t)
+	var shop, work Category
+	ta.mustDo("POST", "/api/categories", `{"name":"Shopping"}`, 201, &shop)
+	ta.mustDo("POST", "/api/categories", `{"name":"Work"}`, 201, &work)
+	for _, body := range []string{
+		`{"text":"milk","priority":"high","category_id":1}`,
+		`{"text":"bread","priority":"low","category_id":1}`,
+		`{"text":"report","priority":"high","category_id":2}`,
+		`{"text":"call mum","priority":"medium"}`,
+	} {
+		ta.mustDo("POST", "/api/tasks", body, 201, nil)
+	}
+	shown := func() int {
+		t.Helper()
+		f, err := ta.api.frame(context.Background(), 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f.Total
+	}
+
+	var dev deviceSettings
+	ta.mustDo("GET", "/api/device", ``, 200, &dev)
+	if dev.CategoryID != nil {
+		t.Errorf("initial device category %d", *dev.CategoryID)
+	}
+	if n := shown(); n != 4 {
+		t.Errorf("all categories: %d tasks shown, want 4", n)
+	}
+
+	changes := ta.changes
+	ta.mustDo("PUT", "/api/device", `{"category_id":1}`, 200, &dev)
+	if dev.CategoryID == nil || *dev.CategoryID != shop.ID {
+		t.Errorf("device category after set: %v", dev.CategoryID)
+	}
+	if ta.changes != changes+1 {
+		t.Errorf("setting the device category reported %d changes, want 1", ta.changes-changes)
+	}
+	ta.mustDo("GET", "/api/device", ``, 200, &dev)
+	if dev.CategoryID == nil || *dev.CategoryID != shop.ID {
+		t.Errorf("device category: %v", dev.CategoryID)
+	}
+	if n := shown(); n != 2 {
+		t.Errorf("Shopping: %d tasks shown, want 2", n)
+	}
+
+	ta.mustDo("PUT", "/api/device", `{"category_id":null}`, 200, &dev)
+	if n := shown(); n != 4 {
+		t.Errorf("back to all categories: %d tasks shown, want 4", n)
+	}
+
+	ta.mustDo("PUT", "/api/device", `{"category_id":2}`, 200, &dev)
+	if n := shown(); n != 1 {
+		t.Errorf("Work: %d tasks shown, want 1", n)
+	}
+	ta.mustDo("DELETE", "/api/categories/2", ``, 204, nil)
+	ta.mustDo("GET", "/api/device", ``, 200, &dev)
+	if dev.CategoryID != nil {
+		t.Errorf("device category after deleting it: %d", *dev.CategoryID)
+	}
+	if n := shown(); n != 4 {
+		t.Errorf("after deleting the shown category: %d tasks shown, want 4", n)
 	}
 }
 

@@ -3,8 +3,9 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const state = {
-  tasks: [],
+  tasks: null, // null until first loaded
   categories: [],
+  device: { category_id: null }, // device settings; category_id null = all categories
   filter: 'open',
   icons: null, // all Material icon names, loaded when the picker first opens
   newCategoryIcon: '',
@@ -99,12 +100,33 @@ async function loadTasks() {
 async function loadCategories() {
   state.categories = await api('GET', '/categories');
   renderCategorySelects();
+  renderDeviceCategory();
   renderCategories();
+  renderTasks(); // task rows show their category
 }
+
+// Device reads and writes run one at a time, so a late reply can't undo a newer choice.
+let deviceQueue = Promise.resolve();
+function deviceOp(fn) {
+  const done = deviceQueue.then(fn);
+  deviceQueue = done.catch(() => {});
+  return done;
+}
+
+function loadDevice() {
+  return deviceOp(async () => {
+    state.device = await api('GET', '/device');
+    renderDeviceCategory();
+  });
+}
+
+// loadAll loads each part independently, so one failed request doesn't block the others.
+const loadAll = () => Promise.all([loadCategories(), loadDevice(), loadTasks()]);
 
 // Tasks
 
 function renderTasks() {
+  if (!state.tasks) return;
   const cats = new Map(state.categories.map((c) => [c.id, c]));
   $('#tasks').replaceChildren(...state.tasks.map((t) => {
     const cat = t.category_id == null ? null : cats.get(t.category_id);
@@ -194,9 +216,31 @@ function renderNewCategoryIcon() {
 async function deleteCategory(c) {
   if (!(await confirmDelete(`Delete category “${c.name}”? Its tasks are kept, without a category.`))) return;
   await api('DELETE', `/categories/${c.id}`);
-  await loadCategories();
-  await loadTasks();
+  await loadAll(); // the device shows all categories again if it showed this one
 }
+
+// Device
+
+function renderDeviceCategory() {
+  const select = $('#device-category');
+  select.replaceChildren(
+    el('option', { value: '' }, 'All categories'),
+    ...state.categories.map((c) => el('option', { value: c.id }, c.name)));
+  select.value = state.device.category_id ?? '';
+}
+
+function setDeviceCategory(value) {
+  return deviceOp(async () => {
+    try {
+      state.device = await api('PUT', '/device', { category_id: value ? Number(value) : null });
+    } finally {
+      renderDeviceCategory(); // on failure, back to what the device shows
+    }
+    refreshPreview();
+  });
+}
+
+const refreshPreview = () => { $('#preview').src = `/api/image.png?t=${Date.now()}`; };
 
 // Icon picker. Resolves to the chosen icon name, '' for "No icon", or null if closed without choosing.
 
@@ -256,7 +300,11 @@ function showTab(name) {
     b.setAttribute('aria-selected', String(b.dataset.tab === name));
   }
   for (const t of TABS) $(`#tab-${t}`).hidden = t !== name;
-  if (name === 'preview') $('#preview').src = `/api/image.png?t=${Date.now()}`;
+  if (name === 'preview') {
+    refreshPreview();
+    // another browser may have changed the device's category, or added the one it shows
+    run(() => Promise.all([loadCategories(), loadDevice()]));
+  }
   if (location.hash !== `#${name}`) history.replaceState(null, '', `#${name}`);
 }
 
@@ -336,6 +384,8 @@ function init() {
     }, $('.form-error', form));
   });
 
+  $('#device-category').addEventListener('change', (e) => run(() => setDeviceCategory(e.target.value)));
+
   $('#new-cat-icon').addEventListener('click', () => run(async () => {
     const name = await pickIcon();
     if (name !== null) {
@@ -360,10 +410,7 @@ function init() {
 
   renderNewCategoryIcon();
   showTab(location.hash.slice(1));
-  run(async () => {
-    await loadCategories();
-    await loadTasks();
-  });
+  run(loadAll);
 }
 
 init();

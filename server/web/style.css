@@ -264,6 +264,15 @@ button.danger { background: var(--danger); color: var(--on-danger); }
   border-radius: 8px;
 }
 #tab-preview .hint { text-align: center; }
+.device-category {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.device-category > span { color: var(--muted); }
+.device-category select { min-width: 0; max-width: 60%; }
 
 /* Dialogs */
 

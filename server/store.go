@@ -270,17 +270,31 @@ func (s *Store) AddCategory(ctx context.Context, name, icon string) (Category, e
 }
 
 // DeleteCategory removes a category; its tasks are kept without a category.
+// If the device was showing only this category, it goes back to showing all.
 func (s *Store) DeleteCategory(ctx context.Context, id int64) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM categories WHERE id = ?`, id)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	return requireRow(res)
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx, `DELETE FROM categories WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if err := requireRow(res); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM settings WHERE key = ? AND value = ?`,
+		settingDeviceCategory, strconv.FormatInt(id, 10)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 const (
 	settingDeviceAddr     = "device_addr"
 	settingDeviceRotation = "device_rotation"
+	settingDeviceCategory = "device_category"
 )
 
 // setting returns a stored value, or "" if it isn't set.
@@ -324,6 +338,39 @@ func (s *Store) DeviceRotation(ctx context.Context) (int, error) {
 
 func (s *Store) SetDeviceRotation(ctx context.Context, rotation int) error {
 	return s.setSetting(ctx, settingDeviceRotation, strconv.Itoa(rotation))
+}
+
+// DeviceCategory returns the category whose tasks the device shows, or nil if it shows all tasks.
+func (s *Store) DeviceCategory(ctx context.Context) (*int64, error) {
+	v, err := s.setting(ctx, settingDeviceCategory)
+	if err != nil || v == "" {
+		return nil, err
+	}
+	id, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("device category %q: %w", v, err)
+	}
+	return &id, nil
+}
+
+// SetDeviceCategory makes the device show only the tasks of category id, or all tasks if id is nil.
+func (s *Store) SetDeviceCategory(ctx context.Context, id *int64) error {
+	if id == nil {
+		_, err := s.db.ExecContext(ctx, `DELETE FROM settings WHERE key = ?`, settingDeviceCategory)
+		return err
+	}
+	res, err := s.db.ExecContext(ctx,
+		`INSERT INTO settings (key, value) SELECT ?, id FROM categories WHERE id = ?
+		 ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+		settingDeviceCategory, *id)
+	if err != nil {
+		return err
+	}
+	err = requireRow(res)
+	if errors.Is(err, ErrNotFound) {
+		return ErrUnknownCategory
+	}
+	return err
 }
 
 func (s *Store) timestamp() string { return s.now().UTC().Format(time.RFC3339) }

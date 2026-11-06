@@ -39,6 +39,8 @@ func (a *api) routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/categories", a.addCategory)
 	mux.HandleFunc("DELETE /api/categories/{id}", a.deleteCategory)
 	mux.HandleFunc("GET /api/icons", a.listIcons)
+	mux.HandleFunc("GET /api/device", a.getDevice)
+	mux.HandleFunc("PUT /api/device", a.setDevice)
 	mux.HandleFunc("GET /api/image.png", a.imagePNG)
 	mux.HandleFunc("GET /api/image.bin", a.imageBin)
 }
@@ -170,6 +172,32 @@ func (a *api) listIcons(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, a.icons.Names())
 }
 
+// deviceSettings are the device settings made in the browser.
+type deviceSettings struct {
+	// CategoryID is the only category whose tasks the device shows; nil shows all tasks.
+	CategoryID *int64 `json:"category_id"`
+}
+
+func (a *api) getDevice(w http.ResponseWriter, r *http.Request) {
+	id, err := a.store.DeviceCategory(r.Context())
+	if storeError(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusOK, deviceSettings{CategoryID: id})
+}
+
+func (a *api) setDevice(w http.ResponseWriter, r *http.Request) {
+	var in deviceSettings
+	if !decode(w, r, &in) {
+		return
+	}
+	if storeError(w, a.store.SetDeviceCategory(r.Context(), in.CategoryID)) {
+		return
+	}
+	a.changed()
+	writeJSON(w, http.StatusOK, in)
+}
+
 // deviceFrame renders the current open tasks at the rotation the device last asked for.
 func (a *api) deviceFrame(ctx context.Context) (*Frame, error) {
 	rotation, err := a.store.DeviceRotation(ctx)
@@ -179,9 +207,13 @@ func (a *api) deviceFrame(ctx context.Context) (*Frame, error) {
 	return a.frame(ctx, rotation)
 }
 
-// frame renders the current open tasks.
+// frame renders the current open tasks, only those of the device's category if it has one.
 func (a *api) frame(ctx context.Context, rotation int) (*Frame, error) {
 	tasks, err := a.store.ListTasks(ctx, "open")
+	if err != nil {
+		return nil, err
+	}
+	only, err := a.store.DeviceCategory(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -195,12 +227,16 @@ func (a *api) frame(ctx context.Context, rotation int) (*Frame, error) {
 			icons[c.ID] = r
 		}
 	}
-	items := make([]ImageTask, len(tasks))
-	for i, t := range tasks {
-		items[i] = ImageTask{Text: t.Text, Priority: t.Priority, Due: t.Due}
-		if t.CategoryID != nil {
-			items[i].Icon = icons[*t.CategoryID]
+	items := make([]ImageTask, 0, len(tasks))
+	for _, t := range tasks {
+		if only != nil && (t.CategoryID == nil || *t.CategoryID != *only) {
+			continue
 		}
+		item := ImageTask{Text: t.Text, Priority: t.Priority, Due: t.Due}
+		if t.CategoryID != nil {
+			item.Icon = icons[*t.CategoryID]
+		}
+		items = append(items, item)
 	}
 	return a.renderer.Render(items, rotation), nil
 }
