@@ -7,10 +7,15 @@ A to-do list kept by a small Go server and shown on a [Waveshare ESP32-S3 PhotoP
 ## How it works
 
 ```mermaid
-flowchart LR
-    browser[Browser] -->|"pages + API"| server["Server<br>(Go, SQLite)"]
-    server -->|"POST /refresh"| device[PhotoPainter]
-    device -->|"GET /api/image.bin"| server
+sequenceDiagram
+    participant B as Browser
+    participant S as Server (Go, SQLite)
+    participant D as PhotoPainter
+    B->>S: Change tasks or settings (API)
+    S->>D: POST /refresh
+    D->>S: GET /api/image.bin?rotation=…
+    S-->>D: New image, or 304 if unchanged
+    Note over D: Redraws the panel
 ```
 
 ## Make
