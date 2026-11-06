@@ -1,11 +1,16 @@
 # Tabula
 
-A to-do list kept by a small Go server and shown on a Waveshare ESP32-S3 PhotoPainter (7.3" 6-colour e-paper). You edit tasks in the browser; the server draws the list as an image and tells the device to fetch it.
+A to-do list kept by a small Go server and shown on a [Waveshare ESP32-S3 PhotoPainter](https://www.waveshare.com/wiki/ESP32-S3-PhotoPainter) (7.3" 6-colour e-paper). You edit tasks in the browser; the server draws the list as an image and tells the device to fetch it.
 
-```
-browser ── pages + API ──▶ server (Go, SQLite) ── POST /refresh ──▶ PhotoPainter
-                               ▲                                       │
-                               └────────── GET /api/image.bin ─────────┘
+![The PhotoPainter in a wooden frame showing the task list](docs/photoframe.jpg)
+
+## How it works
+
+```mermaid
+flowchart LR
+    browser[Browser] -->|"pages + API"| server["Server<br>(Go, SQLite)"]
+    server -->|"POST /refresh"| device[PhotoPainter]
+    device -->|"GET /api/image.bin"| server
 ```
 
 ## Make
@@ -19,7 +24,7 @@ Run from the top folder:
 | `make firmware` | Builds the firmware |
 | `make flash` | Builds the firmware and writes it to the board at `/dev/ttyACM0`; `make flash PORT=…` for another port |
 
-The firmware commands load ESP-IDF from `~/esp/esp-idf/export.sh`, unless `idf.py` already works in the terminal. If it's installed elsewhere, add `IDF_EXPORT=path/to/export.sh`.
+The firmware commands load [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/v5.5.6/esp32s3/get-started/index.html) from `~/esp/esp-idf/export.sh`, unless `idf.py` already works in the terminal. If it's installed elsewhere, add `IDF_EXPORT=path/to/export.sh`.
 
 ## Server
 
@@ -42,6 +47,8 @@ It listens on port 1337 (http://tabula:1337) and keeps tasks in `tabula.db`. To 
 | `image.date_format` | Go date layout: `"Jan 2"` → Oct 24, `"02.01"` → 24.10 |
 
 The rotation isn't a server setting: it's set on the device with the KEY button and sent with each image request. The server learns the device's address and rotation when the device downloads its image. It asks the device to refresh whenever the image changes and once on startup, so config changes show up after a restart.
+
+The device shows open tasks of all categories, or of just one: pick it under **Preview** in the browser. Deleting that category puts it back to all.
 
 Tests: `go test ./...`
 
